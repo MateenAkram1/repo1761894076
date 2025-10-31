@@ -11,7 +11,12 @@ export type Resource =
   | 'team_audit_log'
   | 'team_webhook'
   | 'team_payments'
-  | 'team_api_key';
+  | 'team_api_key'
+  | 'appointment'
+  | 'medical_record'
+  | 'educational_content'
+  | 'patient_profile'
+  | 'doctor_profile';
 
 type RolePermissions = {
   [role in RoleType]: Permission[];
@@ -34,6 +39,14 @@ export const availableRoles = [
   {
     id: Role.OWNER,
     name: 'Owner',
+  },
+  {
+    id: Role.PATIENT,
+    name: 'Patient',
+  },
+  {
+    id: Role.DOCTOR,
+    name: 'Doctor',
   },
 ];
 
@@ -114,6 +127,46 @@ export const permissions: RolePermissions = {
     {
       resource: 'team',
       actions: ['read', 'leave'],
+    },
+  ],
+  PATIENT: [
+    {
+      resource: 'appointment',
+      actions: ['create', 'read', 'update', 'delete'],
+    },
+    {
+      resource: 'medical_record',
+      actions: ['read'],
+    },
+    {
+      resource: 'educational_content',
+      actions: ['read'],
+    },
+    {
+      resource: 'patient_profile',
+      actions: '*',
+    },
+  ],
+  DOCTOR: [
+    {
+      resource: 'appointment',
+      actions: '*',
+    },
+    {
+      resource: 'medical_record',
+      actions: '*',
+    },
+    {
+      resource: 'educational_content',
+      actions: '*',
+    },
+    {
+      resource: 'doctor_profile',
+      actions: '*',
+    },
+    {
+      resource: 'patient_profile',
+      actions: ['read'],
     },
   ],
 };
