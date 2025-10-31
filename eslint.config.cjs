@@ -61,9 +61,12 @@ module.exports = [{
         "components/defaultLanding/**/*.tsx",
         "components/emailTemplates/**/*.tsx",
         "pages/index.tsx",
+        "pages/clinic/**/*.tsx",
+        "pages/portal/**/*.tsx",
     ],
 
     rules: {
         "i18next/no-literal-string": "off",
+        "react/no-unescaped-entities": "off",
     },
 }];

@@ -360,6 +360,17 @@ export const getAuthOptions = (
         // When using database sessions, the User (user) object is provided.
         if (session && (token || user)) {
           session.user.id = token?.sub || user?.id;
+          
+          // Add userRole to session if available
+          if (user && 'userRole' in user) {
+            session.user.userRole = user.userRole as Role;
+          } else if (session.user.id) {
+            // Fetch user role from database
+            const dbUser = await getUser({ id: session.user.id });
+            if (dbUser && dbUser.userRole) {
+              session.user.userRole = dbUser.userRole;
+            }
+          }
         }
 
         if (user?.name) {
