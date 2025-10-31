@@ -360,6 +360,15 @@ export const getAuthOptions = (
         // When using database sessions, the User (user) object is provided.
         if (session && (token || user)) {
           session.user.id = token?.sub || user?.id;
+          
+          // Fetch user role for clinic management
+          const userId = token?.sub || user?.id;
+          if (userId) {
+            const fullUser = await getUser({ id: userId as string });
+            if (fullUser) {
+              session.user.role = fullUser.role;
+            }
+          }
         }
 
         if (user?.name) {

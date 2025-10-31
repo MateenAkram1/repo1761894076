@@ -7,7 +7,7 @@ declare global {
 }
 
 const getSupabaseClient = () => {
-  const databaseProvider = process.env.DATABASE_PROVIDER || 'supabase';
+  const databaseProvider = process.env.DATABASE_PROVIDER || 'postgres';
 
   if (databaseProvider === 'supabase') {
     // Initialize Supabase client
@@ -23,7 +23,8 @@ const getSupabaseClient = () => {
 
     return supabase;
   } else {
-    throw new Error(`Unsupported DATABASE_PROVIDER: ${databaseProvider}. Only 'supabase' is supported in this configuration`);
+    // For postgres or other providers, return null - Prisma will be used directly
+    return null;
   }
 };
 
@@ -31,9 +32,25 @@ export const supabase =
   global.supabase ||
   getSupabaseClient();
 
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production' && supabase) {
   global.supabase = supabase;
 }
 
-// For backward compatibility, export supabase as prisma
-export const prisma = supabase;
+// Import actual Prisma Client
+import { PrismaClient } from '@prisma/client';
+
+declare global {
+  // allow global `var` declarations
+  // eslint-disable-next-line no-var
+  var prisma: PrismaClient | undefined;
+}
+
+export const prisma =
+  global.prisma ||
+  new PrismaClient({
+    log: ['error'],
+  });
+
+if (process.env.NODE_ENV !== 'production') {
+  global.prisma = prisma;
+}

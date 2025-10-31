@@ -13,6 +13,38 @@ enum Role {
   MEMBER
 }
 
+enum UserRole {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum AppointmentType {
+  IN_PERSON
+  TELEHEALTH
+}
+
+enum AppointmentStatus {
+  BOOKED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 model Account {
   id                String  @id @default(uuid())
   userId            String
@@ -58,15 +90,25 @@ model User {
   emailVerified          DateTime?
   password               String?
   image                  String?
+  role                   UserRole  @default(PATIENT)
+  contactInfo            Json?
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @default(now())
   invalid_login_attempts Int       @default(0)
   lockedAt               DateTime?
 
-  teamMembers TeamMember[]
-  accounts    Account[]
-  sessions    Session[]
-  invitations Invitation[]
+  teamMembers            TeamMember[]
+  accounts               Account[]
+  sessions               Session[]
+  invitations            Invitation[]
+  patientProfile         PatientProfile?
+  doctorProfile          DoctorProfile?
+  appointmentsAsPatient  Appointment[]          @relation("PatientAppointments")
+  appointmentsAsDoctor   Appointment[]          @relation("DoctorAppointments")
+  medicalRecordsAsPatient MedicalRecord[]       @relation("PatientRecords")
+  medicalRecordsAsDoctor  MedicalRecord[]       @relation("DoctorRecords")
+  educationalContent     EducationalContent[]
+  payments               Payment[]
 }
 
 model Team {
@@ -217,4 +259,169 @@ model jackson_ttl {
 
   @@index([expiresAt], map: "_jackson_ttl_expires_at")
   @@ignore
+}
+
+model PatientProfile {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  dateOfBirth          DateTime?
+  medicalHistory       Json?
+  allergies            String[]
+  currentMedications   Json?
+  emergencyContactInfo Json?
+  bloodType            String?
+  height               String?
+  weight               String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model DoctorProfile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  specialty          String
+  qualifications     Json?
+  licenseNumber      String?
+  experience         Int?
+  availabilitySchedule Json?
+  bio                String?  @db.Text
+  consultationFee    Int?
+  rating             Float?   @default(0)
+  reviewCount        Int?     @default(0)
+  isAcceptingPatients Boolean @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([specialty])
+}
+
+model Appointment {
+  id              String            @id @default(uuid())
+  patientId       String
+  doctorId        String
+  date            DateTime
+  startTime       String
+  endTime         String
+  type            AppointmentType   @default(IN_PERSON)
+  status          AppointmentStatus @default(BOOKED)
+  duration        Int               @default(30)
+  notes           String?           @db.Text
+  reasonForVisit  String?           @db.Text
+  symptoms        String?           @db.Text
+  paymentStatus   PaymentStatus     @default(PENDING)
+  consultationFee Int?
+  meetingLink     String?
+  reminderSent    Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @default(now())
+
+  patient User      @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor  User      @relation("DoctorAppointments", fields: [doctorId], references: [id], onDelete: Cascade)
+  payment Payment?
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([date])
+  @@index([status])
+}
+
+model MedicalRecord {
+  id              String   @id @default(uuid())
+  patientId       String
+  doctorId        String
+  appointmentId   String?
+  visitDate       DateTime
+  chiefComplaint  String?  @db.Text
+  diagnoses       Json?
+  treatmentPlans  Json?
+  prescriptions   Json?
+  labResults      Json?
+  vitalSigns      Json?
+  visitNotes      String?  @db.Text
+  followUpDate    DateTime?
+  attachments     Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+
+  patient User @relation("PatientRecords", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor  User @relation("DoctorRecords", fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([visitDate])
+}
+
+model EducationalContent {
+  id                String        @id @default(uuid())
+  title             String
+  slug              String        @unique
+  contentBody       String        @db.Text
+  excerpt           String?       @db.Text
+  authorId          String
+  categories        String[]
+  tags              String[]
+  featuredImage     String?
+  status            ContentStatus @default(DRAFT)
+  viewCount         Int           @default(0)
+  publicationDate   DateTime?
+  lastUpdatedDate   DateTime?
+  readingTime       Int?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @default(now())
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([authorId])
+  @@index([slug])
+  @@index([status])
+  @@index([categories])
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  userId          String
+  appointmentId   String?       @unique
+  amount          Int
+  currency        String        @default("usd")
+  status          PaymentStatus @default(PENDING)
+  stripeChargeId  String?
+  stripePaymentIntentId String?
+  paymentMethod   String?
+  description     String?
+  transactionDate DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([appointmentId])
+  @@index([status])
+}
+
+model ClinicSettings {
+  id                String   @id @default(uuid())
+  clinicName        String
+  clinicEmail       String
+  clinicPhone       String
+  clinicAddress     Json?
+  operatingHours    Json?
+  emergencyContact  String?
+  aboutUs           String?  @db.Text
+  mission           String?  @db.Text
+  servicesOffered   Json?
+  socialMedia       Json?
+  appointmentSlotDuration Int @default(30)
+  bookingAdvanceDays      Int @default(30)
+  cancellationPolicyHours Int @default(24)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now())
 }
